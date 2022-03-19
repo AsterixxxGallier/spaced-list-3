@@ -23,6 +23,7 @@ pub struct SpacedList<S: Spacing> {
 impl<S: Spacing> Default for SpacedList<S> {
     fn default() -> Self {
         Self {
+            // TODO maybe it would make sense to start with a size of 1, meaning adding node zero at initialisation
             size: 0,
             length: zero(),
             link_lengths: vec![],
@@ -59,8 +60,9 @@ impl Iterator for LinkIndicesAbove {
 fn necessary_link_length_capacity_for_size(size: usize) -> usize {
     match size {
         0 => 0,
-        1 => 1,
-        _ => (1 << ((size - 1).log2() + 1)) * 2 - 1
+        1 => 0,
+        2 => 1,
+        _ => (1 << ((size - 1 - 1).checked_log2().expect("size was 2, can't take logarithm") + 1)) * 2 - 1
     }
 }
 
@@ -74,7 +76,7 @@ impl<S: Spacing> SpacedList<S> {
     }
 
     fn make_space(&mut self) {
-        if self.size == 0 {
+        if self.size < 2 {
             return;
         }
         let necessary_capacity = necessary_link_length_capacity_for_size(self.size);
@@ -88,17 +90,39 @@ impl<S: Spacing> SpacedList<S> {
         (self.link_lengths.len() + 1).trailing_zeros() as usize
     }
 
+    /// TODO this documentation is just for thoughts rn, nothing to go onto docs.rs or anything
+    ///
+    /// A list of size 0 is completely empty. No nodes, no length, no link lengths, no sublists.
+    ///
+    /// A list of size 1 has one node, chilling at absolute zero, no length, no link lengths.
+    /// A single-node list does not have sublists either, because they would *have* to go after the
+    /// last node, which does not make sense (if you want an element there, just append it).
+    /// Therefore, appending to an empty list ignores the `distance` argument **completely**.
+    ///
+    /// A list of size 2 has two nodes, one at zero, one distanced from that, a length and a single
+    /// link length equal to the distance between the two nodes.
+    /// It may have a sublist between them, after node zero.
+    ///
+    /// A list of any higher size has enough nodes to link every node to the next one, and binary
+    /// shortcut (higher-degree) links on several degrees up. It has a length equal to the greatest
+    /// shortcut link (the one right in the middle of `link_lengths`, at least using the current
+    /// system of link length storage, state 035dba816c16b4005a65c3e0132fdaa59cf6bbc7), and a number
+    /// of link lengths that is enough to store the distances between nodes, allowing for a total
+    /// size up to the next power of 2 + 1. There can be a sublist after every node except for the
+    /// last one.
+    ///
+    ///
     fn append_node(&mut self, distance: S) {
         assert!(distance > zero());
         self.size += 1;
-        self.make_space();
-        self.length += distance;
-        if self.size > 0 {
-            for link_index in LinkIndicesAbove::new(self.size - 1).take(self.depth()) {
+        if self.size > 1 {
+            self.make_space();
+            self.length += distance;
+            for link_index in LinkIndicesAbove::new(self.size - 1 - 1).take(self.depth()) {
                 self.link_lengths[link_index] += distance
             }
+            self.sublists.push(None)
         }
-        self.sublists.push(None)
     }
 
     /// Returns a mutable reference to the sublist at `index`, creating an empty one if absent
@@ -115,15 +139,15 @@ mod tests {
     #[test]
     fn test_spaced_list_necessary_capacity() {
         assert_eq!(necessary_link_length_capacity_for_size(0), 0);
-        assert_eq!(necessary_link_length_capacity_for_size(1), 1);
-        assert_eq!(necessary_link_length_capacity_for_size(2), 3);
-        assert_eq!(necessary_link_length_capacity_for_size(3), 7);
+        assert_eq!(necessary_link_length_capacity_for_size(1), 0);
+        assert_eq!(necessary_link_length_capacity_for_size(2), 1);
+        assert_eq!(necessary_link_length_capacity_for_size(3), 3);
         assert_eq!(necessary_link_length_capacity_for_size(4), 7);
-        assert_eq!(necessary_link_length_capacity_for_size(5), 15);
+        assert_eq!(necessary_link_length_capacity_for_size(5), 7);
         assert_eq!(necessary_link_length_capacity_for_size(6), 15);
         assert_eq!(necessary_link_length_capacity_for_size(7), 15);
         assert_eq!(necessary_link_length_capacity_for_size(8), 15);
-        assert_eq!(necessary_link_length_capacity_for_size(9), 31);
+        assert_eq!(necessary_link_length_capacity_for_size(9), 15);
         assert_eq!(necessary_link_length_capacity_for_size(10), 31);
         assert_eq!(necessary_link_length_capacity_for_size(11), 31);
         assert_eq!(necessary_link_length_capacity_for_size(12), 31);
@@ -131,6 +155,7 @@ mod tests {
         assert_eq!(necessary_link_length_capacity_for_size(14), 31);
         assert_eq!(necessary_link_length_capacity_for_size(15), 31);
         assert_eq!(necessary_link_length_capacity_for_size(16), 31);
+        assert_eq!(necessary_link_length_capacity_for_size(17), 31);
     }
 
     #[test]
@@ -207,6 +232,10 @@ mod tests {
 
         list.size += 1;
         list.make_space();
+        assert_eq!(list.link_lengths.len(), 0);
+
+        list.size += 1;
+        list.make_space();
         assert_eq!(list.link_lengths.len(), 1);
 
         list.size += 1;
@@ -232,10 +261,6 @@ mod tests {
         list.size += 1;
         list.make_space();
         assert_eq!(list.link_lengths.len(), 15);
-
-        list.size += 1;
-        list.make_space();
-        assert_eq!(list.link_lengths.len(), 15);
     }
 
     #[test]
@@ -245,44 +270,44 @@ mod tests {
         assert_eq!(list.length, 0);
         assert_eq!(list.link_lengths, vec![]);
 
-        list.append_node(1);
+        list.append_node(12345);
         assert_eq!(list.size, 1);
+        assert_eq!(list.length, 0);
+        assert_eq!(list.link_lengths, vec![]);
+
+        list.append_node(1);
+        assert_eq!(list.size, 2);
         assert_eq!(list.length, 1);
         assert_eq!(list.link_lengths, vec![1]);
 
         list.append_node(2);
-        assert_eq!(list.size, 2);
+        assert_eq!(list.size, 3);
         assert_eq!(list.length, 3);
         assert_eq!(list.link_lengths, vec![1, 3, 2]);
 
         list.append_node(3);
-        assert_eq!(list.size, 3);
+        assert_eq!(list.size, 4);
         assert_eq!(list.length, 6);
         assert_eq!(list.link_lengths, vec![1, 3, 2, 6, 3, 3, 0]);
 
         list.append_node(2);
-        assert_eq!(list.size, 4);
+        assert_eq!(list.size, 5);
         assert_eq!(list.length, 8);
         assert_eq!(list.link_lengths, vec![1, 3, 2, 8, 3, 5, 2]);
 
         list.append_node(2);
-        assert_eq!(list.size, 5);
+        assert_eq!(list.size, 6);
         assert_eq!(list.length, 10);
         assert_eq!(list.link_lengths, vec![1, 3, 2, 8, 3, 5, 2, 10, 2, 2, 0, 2, 0, 0, 0]);
 
         list.append_node(3);
-        assert_eq!(list.size, 6);
+        assert_eq!(list.size, 7);
         assert_eq!(list.length, 13);
         assert_eq!(list.link_lengths, vec![1, 3, 2, 8, 3, 5, 2, 13, 2, 5, 3, 5, 0, 0, 0]);
 
         list.append_node(1);
-        assert_eq!(list.size, 7);
+        assert_eq!(list.size, 8);
         assert_eq!(list.length, 14);
         assert_eq!(list.link_lengths, vec![1, 3, 2, 8, 3, 5, 2, 14, 2, 5, 3, 6, 1, 1, 0]);
-
-        list.append_node(6);
-        assert_eq!(list.size, 8);
-        assert_eq!(list.length, 20);
-        assert_eq!(list.link_lengths, vec![1, 3, 2, 8, 3, 5, 2, 20, 2, 5, 3, 12, 1, 7, 6]);
     }
 }
