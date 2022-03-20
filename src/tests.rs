@@ -520,6 +520,29 @@ fn test_traversal_without_sublists() {
 }
 
 #[test]
+fn test_append_often() {
+    let mut list = SpacedList::<usize>::new();
+    for n in 0..(1 << 10) {
+        list.append_node(2);
+        // println!("{}: \n{:?}\n", n, list);
+        assert_eq!(list.node_before_shallow(n * 2), if n == 0 { None } else {
+            Some(TraversalResult {
+                list: &list,
+                position: (n - 1) * 2,
+                index: n - 1,
+            })
+        });
+        assert_eq!(list.node_before_shallow(n * 2 + 1),
+            Some(TraversalResult {
+                list: &list,
+                position: n * 2,
+                index: n,
+            })
+        );
+    }
+}
+
+#[test]
 fn test_insert_and_traversal() {
     let mut list = SpacedList::<isize>::new();
     list.insert(2);
