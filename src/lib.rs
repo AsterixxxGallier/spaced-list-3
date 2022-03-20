@@ -81,8 +81,8 @@ impl<S: Spacing> Debug for TraversalResult<'_, S>
 // region spaced list
 /// A list that stores non-zero distance between its nodes, but does not store values.
 ///
-/// IMPORTANT: There are no empty instances of this list. Upon construction, it already contains a
-/// node at position zero, meaning it has a size of 1, not 0.
+/// IMPORTANT: New and empty instances of this list contain one node, fixed at position zero, and
+/// thereby have a size of 1, even though they are empty.
 #[derive(Eq, PartialEq)]
 pub struct SpacedList<S: Spacing> {
     size: usize,
@@ -179,11 +179,17 @@ impl<S: Spacing> SpacedList<S> {
         }
     }
 
+    fn is_empty(&self) -> bool {
+        self.size == 1
+    }
+}
+
+impl<S: Spacing> SpacedList<S> {
     /// Returns the last node before (the greatest less than) `target_position` in this list, not in
     /// sublists, or None if `target_position` is negative.
     fn node_before_shallow(&self, target_position: S) -> Option<TraversalResult<S>> {
         if target_position < zero() {
-            return None
+            return None;
         }
 
         let mut position = S::zero();
@@ -210,7 +216,7 @@ impl<S: Spacing> SpacedList<S> {
     /// this list, not in sublists, or None if `target_position` is negative.
     fn node_before_or_at_shallow(&self, target_position: S) -> Option<TraversalResult<S>> {
         if target_position < zero() {
-            return None
+            return None;
         }
 
         let mut position = S::zero();
@@ -237,7 +243,7 @@ impl<S: Spacing> SpacedList<S> {
     /// does not contain a node at `target_position`.
     fn node_at_shallow(&self, target_position: S) -> Option<TraversalResult<S>> {
         if target_position < zero() {
-            return None
+            return None;
         }
 
         let mut position = S::zero();
@@ -271,12 +277,12 @@ impl<S: Spacing> SpacedList<S> {
             return Some(TraversalResult {
                 list: self,
                 position: zero(),
-                index: 0
-            })
+                index: 0,
+            });
         }
 
         if target_position > self.length {
-            return None
+            return None;
         }
 
         let mut position = S::zero();
@@ -316,12 +322,12 @@ impl<S: Spacing> SpacedList<S> {
             return Some(TraversalResult {
                 list: self,
                 position: zero(),
-                index: 0
-            })
+                index: 0,
+            });
         }
 
         if target_position >= self.length {
-            return None
+            return None;
         }
 
         let mut position = S::zero();
