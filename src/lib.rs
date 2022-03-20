@@ -171,7 +171,7 @@ impl<S: Spacing> SpacedList<S> {
         } else {
             // zero() <= position < self.length
             let TraversalResult { list, position: node_position, index } =
-                self.node_before_or_at_shallow(position);
+                self.node_before_or_at_shallow(position).unwrap();
             let sublist = self.get_sublist_at_index(index);
             let position_in_sublist = position - node_position;
             sublist.insert(position_in_sublist)
@@ -179,13 +179,11 @@ impl<S: Spacing> SpacedList<S> {
     }
 
     /// Returns the last node before (the greatest less than) `target_position` in this list, not in
-    /// sublists.
-    ///
-    /// # Panics
-    ///
-    /// Panics if `target_position` is negative.
-    fn node_before_shallow(&self, target_position: S) -> TraversalResult<S> {
-        assert!(target_position >= zero());
+    /// sublists, or None if `target_position` is negative.
+    fn node_before_shallow(&self, target_position: S) -> Option<TraversalResult<S>> {
+        if target_position < zero() {
+            return None
+        }
 
         let mut position = S::zero();
         let mut index = 0usize;
@@ -200,21 +198,19 @@ impl<S: Spacing> SpacedList<S> {
             }
         }
 
-        TraversalResult {
+        Some(TraversalResult {
             list: self,
             position,
             index,
-        }
+        })
     }
 
     /// Returns the last node before or at (the greatest less than or equal to) `target_position` in
-    /// this list, not in sublists.
-    ///
-    /// # Panics
-    ///
-    /// Panics if `target_position` is negative.
-    fn node_before_or_at_shallow(&self, target_position: S) -> TraversalResult<S> {
-        assert!(target_position >= zero());
+    /// this list, not in sublists, or None if `target_position` is negative.
+    fn node_before_or_at_shallow(&self, target_position: S) -> Option<TraversalResult<S>> {
+        if target_position < zero() {
+            return None
+        }
 
         let mut position = S::zero();
         let mut index = 0usize;
@@ -229,21 +225,19 @@ impl<S: Spacing> SpacedList<S> {
             }
         }
 
-        TraversalResult {
+        Some(TraversalResult {
             list: self,
             position,
             index,
-        }
+        })
     }
 
     /// Returns the node at `target_position` in this list, not in sublists, or None if this list
     /// does not contain a node at `target_position`.
-    ///
-    /// # Panics
-    ///
-    /// Panics if `target_position` is negative.
     fn node_at_shallow(&self, target_position: S) -> Option<TraversalResult<S>> {
-        assert!(target_position >= zero());
+        if target_position < zero() {
+            return None
+        }
 
         let mut position = S::zero();
         let mut index = 0usize;
@@ -271,12 +265,14 @@ impl<S: Spacing> SpacedList<S> {
 
     /// Returns the first node after or at (the least greater than or equal to) `target_position` in
     /// this list, not in sublists, or None if `target_position > self.length`.
-    ///
-    /// # Panics
-    ///
-    /// Panics if `target_position` is negative.
     fn node_after_or_at_shallow(&self, target_position: S) -> Option<TraversalResult<S>> {
-        assert!(target_position >= zero());
+        if target_position < zero() {
+            return Some(TraversalResult {
+                list: self,
+                position: zero(),
+                index: 0
+            })
+        }
 
         if target_position > self.length {
             return None
@@ -310,6 +306,43 @@ impl<S: Spacing> SpacedList<S> {
                 index: index + 1,
             })
         }
+    }
+
+    /// Returns the first node after (the least greater than) `target_position` in this list, not in
+    /// sublists, or None if `target_position > self.length`.
+    fn node_after_shallow(&self, target_position: S) -> Option<TraversalResult<S>> {
+        if target_position < zero() {
+            return Some(TraversalResult {
+                list: self,
+                position: zero(),
+                index: 0
+            })
+        }
+
+        if target_position >= self.length {
+            return None
+        }
+
+        let mut position = S::zero();
+        let mut index = 0usize;
+        for degree in (0..self.depth()).rev() {
+            let possibly_next_index = index + (1 << degree);
+            if possibly_next_index < self.size {
+                let possibly_next_position = position + self[(index, degree)];
+                if possibly_next_position <= target_position {
+                    position = possibly_next_position;
+                    index = possibly_next_index;
+                }
+            }
+        }
+
+        // target_position < self.length
+        // therefore, we can safely assume there is a node after position and index
+        Some(TraversalResult {
+            list: self,
+            position: position + self[(index, 0)],
+            index: index + 1,
+        })
     }
 }
 // endregion
