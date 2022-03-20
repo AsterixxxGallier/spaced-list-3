@@ -166,7 +166,7 @@ impl<S: Spacing> SpacedList<S> {
     /// Returns a reference to the sublist at `index`, or None if there is no sublist at
     /// `index` or that sublist is empty
     fn get_not_empty_sublist_at_index(&self, index: usize) -> Option<&SpacedList<S>> {
-        let sublist = (&self.sublists[index]).as_ref()?;
+        let sublist = self.sublists.get(index)?.as_ref()?;
         if sublist.is_empty() {
             None
         } else {
@@ -177,7 +177,7 @@ impl<S: Spacing> SpacedList<S> {
     /// Returns a mutable reference to the sublist at `index`, or None if there is no sublist at
     /// `index` or that sublist is empty
     fn get_not_empty_sublist_at_index_mut(&mut self, index: usize) -> Option<&mut SpacedList<S>> {
-        let sublist = (&mut self.sublists[index]).as_mut()?;
+        let sublist = self.sublists.get_mut(index)?.as_mut()?;
         if sublist.is_empty() {
             None
         } else {
@@ -193,7 +193,7 @@ impl<S: Spacing> SpacedList<S> {
         } else {
             // zero() < position < self.length
             let TraversalResult { list, position: node_position, index } =
-                self.node_before_or_at_shallow(position).unwrap();
+                self.node_at_or_before_shallow(position).unwrap();
             let sublist = self.get_sublist_at_index(index);
             let position_in_sublist = position - node_position;
             assert!(position_in_sublist > zero());
@@ -208,9 +208,9 @@ impl<S: Spacing> SpacedList<S> {
 
 impl<S: Spacing> SpacedList<S> {
     /// Returns the last node before (the greatest less than) `target_position` in this list, not in
-    /// sublists, or None if `target_position` is negative.
+    /// sublists, or None if `target_position` is zero or negative.
     fn node_before_shallow(&self, target_position: S) -> Option<TraversalResult<S>> {
-        if target_position < zero() {
+        if target_position <= zero() {
             return None;
         }
 
@@ -234,9 +234,9 @@ impl<S: Spacing> SpacedList<S> {
         })
     }
 
-    /// Returns the last node before or at (the greatest less than or equal to) `target_position` in
+    /// Returns the last node at or before (the greatest less than or equal to) `target_position` in
     /// this list, not in sublists, or None if `target_position` is negative.
-    fn node_before_or_at_shallow(&self, target_position: S) -> Option<TraversalResult<S>> {
+    fn node_at_or_before_shallow(&self, target_position: S) -> Option<TraversalResult<S>> {
         if target_position < zero() {
             return None;
         }
@@ -292,9 +292,9 @@ impl<S: Spacing> SpacedList<S> {
         }
     }
 
-    /// Returns the first node after or at (the least greater than or equal to) `target_position` in
+    /// Returns the first node at or after (the least greater than or equal to) `target_position` in
     /// this list, not in sublists, or None if `target_position > self.length`.
-    fn node_after_or_at_shallow(&self, target_position: S) -> Option<TraversalResult<S>> {
+    fn node_at_or_after_shallow(&self, target_position: S) -> Option<TraversalResult<S>> {
         if target_position < zero() {
             return Some(TraversalResult {
                 list: self,
@@ -374,6 +374,216 @@ impl<S: Spacing> SpacedList<S> {
         })
     }
 }
+
+impl<S: Spacing> SpacedList<S> {
+    /// Returns the last node before (the greatest less than) `target_position` in this list,
+    /// including sublists, or None if `target_position` is zero or negative.
+    fn node_before(&self, target_position: S) -> Option<Vec<TraversalResult<S>>> {
+        if target_position <= zero() {
+            return None;
+        }
+
+        let mut position = S::zero();
+        let mut index = 0usize;
+        for degree in (0..self.depth()).rev() {
+            let possibly_next_index = index + (1 << degree);
+            if possibly_next_index < self.size {
+                let possibly_next_position = position + self[(index, degree)];
+                if possibly_next_position < target_position {
+                    position = possibly_next_position;
+                    index = possibly_next_index;
+                }
+            }
+        }
+
+        let mut result = vec![TraversalResult {
+            list: self,
+            position,
+            index,
+        }];
+        let sublist = self.get_not_empty_sublist_at_index(index);
+        if let Some(sublist) = sublist {
+            let sublist_result = sublist.node_before(target_position - position)?;
+            // TODO possibly implement this check for the methods below too? dunno rn
+            if sublist_result.len() > 1 || sublist_result[0].index != 0 {
+                result.extend(sublist_result.into_iter())
+            }
+        }
+        Some(result)
+    }
+
+    /// Returns the last node at or before (the greatest less than or equal to) `target_position` in
+    /// this list, not in sublists, or None if `target_position` is negative.
+    fn node_at_or_before(&self, target_position: S) -> Option<Vec<TraversalResult<S>>> {
+        if target_position < zero() {
+            return None;
+        }
+
+        let mut position = S::zero();
+        let mut index = 0usize;
+        for degree in (0..self.depth()).rev() {
+            let possibly_next_index = index + (1 << degree);
+            if possibly_next_index < self.size {
+                let possibly_next_position = position + self[(index, degree)];
+                if possibly_next_position <= target_position {
+                    position = possibly_next_position;
+                    index = possibly_next_index;
+                }
+            }
+        }
+
+        let mut result = vec![TraversalResult {
+            list: self,
+            position,
+            index,
+        }];
+        let sublist = self.get_not_empty_sublist_at_index(index);
+        match sublist {
+            Some(sublist) if position != target_position => {
+                result.extend(sublist.node_at_or_before(target_position - position)?.into_iter())
+            }
+            _ => ()
+        }
+        Some(result)
+    }
+
+    /// Returns the node at `target_position` in this list, not in sublists, or None if this list
+    /// does not contain a node at `target_position`.
+    fn node_at(&self, target_position: S) -> Option<Vec<TraversalResult<S>>> {
+        if target_position < zero() {
+            return None;
+        }
+
+        let mut position = S::zero();
+        let mut index = 0usize;
+        for degree in (0..self.depth()).rev() {
+            let possibly_next_index = index + (1 << degree);
+            if possibly_next_index < self.size {
+                let possibly_next_position = position + self[(index, degree)];
+                if possibly_next_position <= target_position {
+                    position = possibly_next_position;
+                    index = possibly_next_index;
+                }
+            }
+        }
+
+        let mut result = vec![TraversalResult {
+            list: self,
+            position,
+            index,
+        }];
+        if position != target_position {
+            let sublist = self.get_not_empty_sublist_at_index(index);
+            if let Some(sublist) = sublist {
+                result.extend(sublist.node_at(target_position - position)?.into_iter())
+            } else {
+                return None;
+            }
+        }
+        Some(result)
+    }
+
+    /// Returns the first node at or after (the least greater than or equal to) `target_position` in
+    /// this list, not in sublists, or None if `target_position > self.length`.
+    fn node_at_or_after(&self, target_position: S) -> Option<Vec<TraversalResult<S>>> {
+        if target_position < zero() {
+            return Some(vec![TraversalResult {
+                list: self,
+                position: zero(),
+                index: 0,
+            }]);
+        }
+
+        if target_position > self.length {
+            return None;
+        }
+
+        let mut position = S::zero();
+        let mut index = 0usize;
+        for degree in (0..self.depth()).rev() {
+            let possibly_next_index = index + (1 << degree);
+            if possibly_next_index < self.size {
+                let possibly_next_position = position + self[(index, degree)];
+                if possibly_next_position <= target_position {
+                    position = possibly_next_position;
+                    index = possibly_next_index;
+                }
+            }
+        }
+
+        let mut result = vec![TraversalResult {
+            list: self,
+            position,
+            index,
+        }];
+        if position != target_position {
+            // target_position < self.length
+            // therefore, we can safely assume there is a node after position and index
+            let sublist = self.get_not_empty_sublist_at_index(index);
+            if let Some(sublist) = sublist {
+                result.extend(sublist.node_at_or_after(target_position - position)?.into_iter())
+            } else {
+                return Some(vec![TraversalResult {
+                    list: self,
+                    position: position + self[(index, 0)],
+                    index: index + 1,
+                }]);
+            }
+        }
+        Some(result)
+    }
+
+    /// Returns the first node after (the least greater than) `target_position` in this list, not in
+    /// sublists, or None if `target_position > self.length`.
+    fn node_after(&self, target_position: S) -> Option<Vec<TraversalResult<S>>> {
+        if target_position < zero() {
+            return Some(vec![TraversalResult {
+                list: self,
+                position: zero(),
+                index: 0,
+            }]);
+        }
+
+        if target_position >= self.length {
+            return None;
+        }
+
+        let mut position = S::zero();
+        let mut index = 0usize;
+        for degree in (0..self.depth()).rev() {
+            let possibly_next_index = index + (1 << degree);
+            if possibly_next_index < self.size {
+                let possibly_next_position = position + self[(index, degree)];
+                if possibly_next_position <= target_position {
+                    position = possibly_next_position;
+                    index = possibly_next_index;
+                }
+            }
+        }
+
+        let mut result = vec![TraversalResult {
+            list: self,
+            position,
+            index,
+        }];
+        // target_position < self.length
+        // therefore, we can safely assume there is a node after position and index
+        let sublist = self.get_not_empty_sublist_at_index(index);
+        if let Some(sublist) = sublist {
+            let sublist_result = sublist.node_after(target_position - position);
+            // TODO possibly implement this check for the methods above too? dunno rn
+            if let Some(sublist_result) = sublist_result {
+                result.extend(sublist_result.into_iter());
+                return Some(result);
+            }
+        }
+        Some(vec![TraversalResult {
+            list: self,
+            position: position + self[(index, 0)],
+            index: index + 1,
+        }])
+    }
+}
 // endregion
 
 // region spaced list indexing
@@ -400,14 +610,15 @@ fn id_letter(id: usize) -> char {
 }
 
 impl<S: Spacing> Debug for SpacedList<S>
-    where S: Into<usize> {
+    where S: TryInto<usize> + Debug,
+          <S as TryInto<usize>>::Error: Debug {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         let depth = self.depth();
         for degree in (0..depth).rev() {
             f.write_str(" ")?;
             for index in (0..self.size - 1).step_by(1 << degree) {
                 let link_length = self[(index, degree)];
-                f.write_str("‾".repeat(link_length.into() * 2 - 1).as_str())?;
+                f.write_str("‾".repeat(link_length.try_into().unwrap() * 2 - 1).as_str())?;
                 f.write_str("\\")?;
             }
             f.write_char('\n')?;
@@ -417,8 +628,8 @@ impl<S: Spacing> Debug for SpacedList<S>
         for index in 1..self.size {
             let link_length = self[(index - 1, 0)];
             position += link_length;
-            f.write_str(" ".repeat(link_length.into() - 1).as_str())?;
-            write!(f, "{:2}", position.into());
+            f.write_str(" ".repeat(link_length.try_into().unwrap() - 1).as_str())?;
+            write!(f, "{:2?}", position);
         }
         f.write_char('\n')?;
         f.write_char(' ')?;
@@ -433,7 +644,7 @@ impl<S: Spacing> Debug for SpacedList<S>
             } else {
                 f.write_str("  ")?;
             }
-            f.write_str(" ".repeat(link_length.into() - 1).as_str())?;
+            f.write_str(" ".repeat(link_length.try_into().unwrap() - 1).as_str())?;
         }
         f.write_char('\n')?;
         for (id, &sublist) in sublists.iter().enumerate() {
