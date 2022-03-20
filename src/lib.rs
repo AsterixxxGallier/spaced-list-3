@@ -17,16 +17,6 @@ use num_traits::{Zero, zero};
 pub trait Spacing = Add<Output=Self> + AddAssign + Sub<Output=Self> + Zero + Ord + Copy;
 
 // region helper functions
-fn necessary_link_length_capacity_for_size(size: usize) -> usize {
-    match size {
-        // never actually happens
-        0 => 0,
-        1 => 0,
-        2 => 1,
-        _ => (1 << ((size - 1 - 1).checked_log2().expect("size was 2, can't take logarithm") + 1)) * 2 - 1
-    }
-}
-
 const fn link_index(node_index: usize, degree: usize) -> usize {
     (((node_index >> degree << 1) + 1) << degree) - 1
 }
@@ -86,6 +76,7 @@ impl<S: Spacing> Debug for TraversalResult<'_, S>
 #[derive(Eq, PartialEq)]
 pub struct SpacedList<S: Spacing> {
     size: usize,
+    capacity: usize,
     length: S,
     link_lengths: Vec<S>,
     sublists: Vec<Option<SpacedList<S>>>,
@@ -95,6 +86,7 @@ impl<S: Spacing> Default for SpacedList<S> {
     fn default() -> Self {
         Self {
             size: 1,
+            capacity: 1,
             length: zero(),
             link_lengths: vec![],
             sublists: vec![],
@@ -111,8 +103,16 @@ impl<S: Spacing> SpacedList<S> {
         if self.size < 2 {
             return;
         }
-        let necessary_capacity = necessary_link_length_capacity_for_size(self.size);
-        if self.link_lengths.len() < necessary_capacity {
+        if self.capacity < self.size {
+            // Link lengths series:
+            // 0 -> 1 -> 3 -> 7 -> 15 -> 31 -> 63 -> 127 -> 255 -> 511 ->
+            // Zero-level links series:
+            // 0 -> 1 -> 2 -> 4 ->  8 -> 16 -> 32 ->  64 -> 128 -> 256 ->
+            // Capacity series:
+            // 1 -> 2 -> 3 -> 5 ->  9 -> 17 -> 33 ->  65 -> 129 -> 257 ->
+            // the next element of the capacity series is always the last element of the link
+            // lengths series + 2
+            self.capacity = self.link_lengths.len() + 2;
             self.link_lengths.push(self.length);
             self.link_lengths.extend(vec![zero(); self.link_lengths.len() - 1].iter());
         }
@@ -365,8 +365,6 @@ impl<S: Spacing> SpacedList<S> {
             }
         }
 
-        // target_position < self.length
-        // therefore, we can safely assume there is a node after position and index
         Some(TraversalResult {
             list: self,
             position: position + self[(index, 0)],
