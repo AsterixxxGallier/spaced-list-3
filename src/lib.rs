@@ -227,6 +227,35 @@ impl<S: Spacing> SpacedList<S> {
             index,
         }
     }
+
+    /// Returns the node at `target_position` in this list, not in sublists, or None if this list
+    /// does not contain a node at `target_position`
+    fn node_at_shallow(&self, target_position: S) -> Option<TraversalResult<S>> {
+        assert!(target_position >= zero());
+
+        let mut position = S::zero();
+        let mut index = 0usize;
+        for degree in (0..self.depth()).rev() {
+            let possibly_next_index = index + (1 << degree);
+            if possibly_next_index < self.size {
+                let possibly_next_position = position + self[(index, degree)];
+                if possibly_next_position <= target_position {
+                    position = possibly_next_position;
+                    index = possibly_next_index;
+                }
+            }
+        }
+
+        if position == target_position {
+            Some(TraversalResult {
+                list: self,
+                position,
+                index,
+            })
+        } else {
+            None
+        }
+    }
 }
 // endregion
 
@@ -495,56 +524,78 @@ mod tests {
                    TraversalResult { list: &list, position: 0, index: 0 });
         assert_eq!(list.node_before_or_at_shallow(0),
                    TraversalResult { list: &list, position: 0, index: 0 });
+        assert_eq!(list.node_at_shallow(0),
+                   Some(TraversalResult { list: &list, position: 0, index: 0 }));
 
         assert_eq!(list.node_before_shallow(1),
                    TraversalResult { list: &list, position: 0, index: 0 });
         assert_eq!(list.node_before_or_at_shallow(1),
                    TraversalResult { list: &list, position: 0, index: 0 });
+        assert_eq!(list.node_at_shallow(1), None);
 
         assert_eq!(list.node_before_shallow(2),
                    TraversalResult { list: &list, position: 0, index: 0 });
         assert_eq!(list.node_before_or_at_shallow(2),
                    TraversalResult { list: &list, position: 2, index: 1 });
+        assert_eq!(list.node_at_shallow(2),
+                   Some(TraversalResult { list: &list, position: 2, index: 1 }));
 
         assert_eq!(list.node_before_shallow(3),
                    TraversalResult { list: &list, position: 2, index: 1 });
         assert_eq!(list.node_before_or_at_shallow(3),
                    TraversalResult { list: &list, position: 2, index: 1 });
+        assert_eq!(list.node_at_shallow(3), None);
 
         assert_eq!(list.node_before_shallow(4),
                    TraversalResult { list: &list, position: 2, index: 1 });
         assert_eq!(list.node_before_or_at_shallow(4),
                    TraversalResult { list: &list, position: 2, index: 1 });
+        assert_eq!(list.node_at_shallow(4), None);
 
         assert_eq!(list.node_before_shallow(5),
                    TraversalResult { list: &list, position: 2, index: 1 });
         assert_eq!(list.node_before_or_at_shallow(5),
                    TraversalResult { list: &list, position: 5, index: 2 });
+        assert_eq!(list.node_at_shallow(5),
+                   Some(TraversalResult { list: &list, position: 5, index: 2 }));
 
         assert_eq!(list.node_before_shallow(6),
                    TraversalResult { list: &list, position: 5, index: 2 });
         assert_eq!(list.node_before_or_at_shallow(6),
                    TraversalResult { list: &list, position: 5, index: 2 });
+        assert_eq!(list.node_at_shallow(6), None);
 
         assert_eq!(list.node_before_shallow(7),
                    TraversalResult { list: &list, position: 5, index: 2 });
         assert_eq!(list.node_before_or_at_shallow(7),
                    TraversalResult { list: &list, position: 5, index: 2 });
+        assert_eq!(list.node_at_shallow(7), None);
 
         assert_eq!(list.node_before_shallow(8),
                    TraversalResult { list: &list, position: 5, index: 2 });
         assert_eq!(list.node_before_or_at_shallow(8),
                    TraversalResult { list: &list, position: 5, index: 2 });
+        assert_eq!(list.node_at_shallow(8), None);
 
         assert_eq!(list.node_before_shallow(9),
                    TraversalResult { list: &list, position: 5, index: 2 });
         assert_eq!(list.node_before_or_at_shallow(9),
                    TraversalResult { list: &list, position: 9, index: 3 });
+        assert_eq!(list.node_at_shallow(9),
+                   Some(TraversalResult { list: &list, position: 9, index: 3 }));
 
         assert_eq!(list.node_before_shallow(10),
                    TraversalResult { list: &list, position: 9, index: 3 });
         assert_eq!(list.node_before_or_at_shallow(10),
                    TraversalResult { list: &list, position: 10, index: 4 });
+        assert_eq!(list.node_at_shallow(10),
+                   Some(TraversalResult { list: &list, position: 10, index: 4 }));
+
+        assert_eq!(list.node_before_shallow(11),
+                   TraversalResult { list: &list, position: 10, index: 4 });
+        assert_eq!(list.node_before_or_at_shallow(11),
+                   TraversalResult { list: &list, position: 10, index: 4 });
+        assert_eq!(list.node_at_shallow(11), None);
     }
 
     #[test]
