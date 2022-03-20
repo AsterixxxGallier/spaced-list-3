@@ -163,6 +163,17 @@ impl<S: Spacing> SpacedList<S> {
         self.sublists[index].get_or_insert_default()
     }
 
+    /// Returns a mutable reference to the sublist at `index`, or None if there is no sublist at
+    /// `index` or that sublist is empty
+    fn get_not_empty_sublist_at_index(&mut self, index: usize) -> Option<&mut SpacedList<S>> {
+        let sublist = (&mut self.sublists[index]).as_mut()?;
+        if sublist.is_empty() {
+            None
+        } else {
+            Some(sublist)
+        }
+    }
+
     fn insert(&mut self, position: S) {
         assert!(position > zero());
 
