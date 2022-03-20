@@ -79,7 +79,7 @@ impl<S: Spacing> Debug for TraversalResult<'_, S>
 // endregion
 
 // region spaced list
-/// A list that stores the distance between its nodes, but does not store values
+/// A list that stores non-zero distance between its nodes, but does not store values.
 ///
 /// IMPORTANT: There are no empty instances of this list. Upon construction, it already contains a
 /// node at position zero, meaning it has a size of 1, not 0.
@@ -146,7 +146,7 @@ impl<S: Spacing> SpacedList<S> {
     ///
     ///
     fn append_node(&mut self, distance: S) {
-        assert!(distance >= zero());
+        assert!(distance > zero());
         // self.size is at least 1 (no empty lists exist), so
         self.size += 1;
         // self.size is greater than one by now
@@ -164,16 +164,17 @@ impl<S: Spacing> SpacedList<S> {
     }
 
     fn insert(&mut self, position: S) {
-        assert!(position >= zero());
+        assert!(position > zero());
 
         if position >= self.length {
             self.append_node(position - self.length)
         } else {
-            // zero() <= position < self.length
+            // zero() < position < self.length
             let TraversalResult { list, position: node_position, index } =
                 self.node_before_or_at_shallow(position).unwrap();
             let sublist = self.get_sublist_at_index(index);
             let position_in_sublist = position - node_position;
+            assert!(position_in_sublist > zero());
             sublist.insert(position_in_sublist)
         }
     }
@@ -372,20 +373,12 @@ fn id_letter(id: usize) -> char {
 
 impl<S: Spacing> Debug for SpacedList<S>
     where S: Into<usize> {
-    /// Prints this list in a human-readable format, including sublists.
-    ///
-    /// # Panics
-    ///
-    /// This function panics when a link length of zero is encountered.
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         let depth = self.depth();
         for degree in (0..depth).rev() {
             f.write_str(" ")?;
             for index in (0..self.size - 1).step_by(1 << degree) {
                 let link_length = self[(index, degree)];
-                if link_length.is_zero() {
-                    panic!("Encountered link length of zero while debug formatting spaced list")
-                }
                 f.write_str("‾".repeat(link_length.into() * 2 - 1).as_str())?;
                 f.write_str("\\")?;
             }
@@ -395,9 +388,6 @@ impl<S: Spacing> Debug for SpacedList<S>
         let mut position: S = zero();
         for index in 1..self.size {
             let link_length = self[(index - 1, 0)];
-            if link_length.is_zero() {
-                panic!("Encountered link length of zero while debug formatting spaced list")
-            }
             position += link_length;
             f.write_str(" ".repeat(link_length.into() - 1).as_str())?;
             write!(f, "{:2}", position.into());
@@ -407,9 +397,6 @@ impl<S: Spacing> Debug for SpacedList<S>
         let mut sublists = vec![];
         for index in 0..self.size - 1 {
             let link_length = self[(index, 0)];
-            if link_length.is_zero() {
-                panic!("Encountered link length of zero while debug formatting spaced list")
-            }
             let sublist = &self.sublists[index];
             if let Some(sublist) = sublist {
                 f.write_char('^')?;
