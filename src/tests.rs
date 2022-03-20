@@ -181,12 +181,16 @@ fn test_shallow_traversal() {
                TraversalResult { list: &list, position: 0, index: 0 });
     assert_eq!(list.node_at_shallow(0),
                Some(TraversalResult { list: &list, position: 0, index: 0 }));
+    assert_eq!(list.node_after_or_at_shallow(0),
+               Some(TraversalResult { list: &list, position: 0, index: 0 }));
 
     assert_eq!(list.node_before_shallow(1),
                TraversalResult { list: &list, position: 0, index: 0 });
     assert_eq!(list.node_before_or_at_shallow(1),
                TraversalResult { list: &list, position: 0, index: 0 });
     assert_eq!(list.node_at_shallow(1), None);
+    assert_eq!(list.node_after_or_at_shallow(1),
+               Some(TraversalResult { list: &list, position: 2, index: 1 }));
 
     assert_eq!(list.node_before_shallow(2),
                TraversalResult { list: &list, position: 0, index: 0 });
@@ -194,18 +198,24 @@ fn test_shallow_traversal() {
                TraversalResult { list: &list, position: 2, index: 1 });
     assert_eq!(list.node_at_shallow(2),
                Some(TraversalResult { list: &list, position: 2, index: 1 }));
+    assert_eq!(list.node_after_or_at_shallow(2),
+               Some(TraversalResult { list: &list, position: 2, index: 1 }));
 
     assert_eq!(list.node_before_shallow(3),
                TraversalResult { list: &list, position: 2, index: 1 });
     assert_eq!(list.node_before_or_at_shallow(3),
                TraversalResult { list: &list, position: 2, index: 1 });
     assert_eq!(list.node_at_shallow(3), None);
+    assert_eq!(list.node_after_or_at_shallow(3),
+               Some(TraversalResult { list: &list, position: 5, index: 2 }));
 
     assert_eq!(list.node_before_shallow(4),
                TraversalResult { list: &list, position: 2, index: 1 });
     assert_eq!(list.node_before_or_at_shallow(4),
                TraversalResult { list: &list, position: 2, index: 1 });
     assert_eq!(list.node_at_shallow(4), None);
+    assert_eq!(list.node_after_or_at_shallow(4),
+               Some(TraversalResult { list: &list, position: 5, index: 2 }));
 
     assert_eq!(list.node_before_shallow(5),
                TraversalResult { list: &list, position: 2, index: 1 });
@@ -213,30 +223,40 @@ fn test_shallow_traversal() {
                TraversalResult { list: &list, position: 5, index: 2 });
     assert_eq!(list.node_at_shallow(5),
                Some(TraversalResult { list: &list, position: 5, index: 2 }));
+    assert_eq!(list.node_after_or_at_shallow(5),
+               Some(TraversalResult { list: &list, position: 5, index: 2 }));
 
     assert_eq!(list.node_before_shallow(6),
                TraversalResult { list: &list, position: 5, index: 2 });
     assert_eq!(list.node_before_or_at_shallow(6),
                TraversalResult { list: &list, position: 5, index: 2 });
     assert_eq!(list.node_at_shallow(6), None);
+    assert_eq!(list.node_after_or_at_shallow(6),
+               Some(TraversalResult { list: &list, position: 9, index: 3 }));
 
     assert_eq!(list.node_before_shallow(7),
                TraversalResult { list: &list, position: 5, index: 2 });
     assert_eq!(list.node_before_or_at_shallow(7),
                TraversalResult { list: &list, position: 5, index: 2 });
     assert_eq!(list.node_at_shallow(7), None);
+    assert_eq!(list.node_after_or_at_shallow(7),
+               Some(TraversalResult { list: &list, position: 9, index: 3 }));
 
     assert_eq!(list.node_before_shallow(8),
                TraversalResult { list: &list, position: 5, index: 2 });
     assert_eq!(list.node_before_or_at_shallow(8),
                TraversalResult { list: &list, position: 5, index: 2 });
     assert_eq!(list.node_at_shallow(8), None);
+    assert_eq!(list.node_after_or_at_shallow(8),
+               Some(TraversalResult { list: &list, position: 9, index: 3 }));
 
     assert_eq!(list.node_before_shallow(9),
                TraversalResult { list: &list, position: 5, index: 2 });
     assert_eq!(list.node_before_or_at_shallow(9),
                TraversalResult { list: &list, position: 9, index: 3 });
     assert_eq!(list.node_at_shallow(9),
+               Some(TraversalResult { list: &list, position: 9, index: 3 }));
+    assert_eq!(list.node_after_or_at_shallow(9),
                Some(TraversalResult { list: &list, position: 9, index: 3 }));
 
     assert_eq!(list.node_before_shallow(10),
@@ -245,12 +265,15 @@ fn test_shallow_traversal() {
                TraversalResult { list: &list, position: 10, index: 4 });
     assert_eq!(list.node_at_shallow(10),
                Some(TraversalResult { list: &list, position: 10, index: 4 }));
+    assert_eq!(list.node_after_or_at_shallow(10),
+               Some(TraversalResult { list: &list, position: 10, index: 4 }));
 
     assert_eq!(list.node_before_shallow(11),
                TraversalResult { list: &list, position: 10, index: 4 });
     assert_eq!(list.node_before_or_at_shallow(11),
                TraversalResult { list: &list, position: 10, index: 4 });
     assert_eq!(list.node_at_shallow(11), None);
+    assert_eq!(list.node_after_or_at_shallow(11), None);
 }
 
 #[test]
