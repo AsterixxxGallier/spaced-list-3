@@ -82,4 +82,16 @@ alternative unchunked approach:
 0010012001001230010012001001234
 001001200100123001001200100123400100120010012300100120010012345
 0010012001001230010012001001234001001200100123001001200100123450010012001001230010012001001234001001200100123001001200100123456
+
+this way, every link length actually is the sum of the link lengths before, up to the last link length of the same degree
+
+0 0 1 0 0 1 2
+2 3 5 1 3 4 9
+2+3=5 1+3=4 
+  5  +  4 = 9
+  
+things that need to go fast (in no particular order):
+1. appending
+2. traversing
+3. iterating
 ```
