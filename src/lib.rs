@@ -634,24 +634,26 @@ impl<S: Spacing> Debug for SpacedList<S>
             f.write_str(" ".repeat(link_length.try_into().unwrap() - 1).as_str())?;
             write!(f, "{:2?}", position);
         }
-        f.write_char('\n')?;
-        f.write_char(' ')?;
-        let mut sublists = vec![];
-        for index in 0..self.size - 1 {
-            let link_length = self[(index, 0)];
-            let sublist = &self.sublists[index];
-            if let Some(sublist) = sublist {
-                f.write_char('^')?;
-                f.write_char(id_letter(sublists.len()))?;
-                sublists.push(sublist);
-            } else {
-                f.write_str("  ")?;
+        if self.sublists.iter().any(|it| it.is_some()) {
+            f.write_char('\n')?;
+            f.write_char(' ')?;
+            let mut sublists = vec![];
+            for index in 0..self.size - 1 {
+                let link_length = self[(index, 0)];
+                let sublist = &self.sublists[index];
+                if let Some(sublist) = sublist {
+                    f.write_char('^')?;
+                    f.write_char(id_letter(sublists.len()))?;
+                    sublists.push(sublist);
+                } else {
+                    f.write_str("  ")?;
+                }
+                f.write_str(" ".repeat(link_length.try_into().unwrap() - 1).as_str())?;
             }
-            f.write_str(" ".repeat(link_length.try_into().unwrap() - 1).as_str())?;
-        }
-        f.write_char('\n')?;
-        for (id, &sublist) in sublists.iter().enumerate() {
-            write!(indented(f).with_str("| "), "sublist {}: \n{:?}", id_letter(id), sublist);
+            f.write_char('\n')?;
+            for (id, &sublist) in sublists.iter().enumerate() {
+                write!(indented(f).with_str("| "), "sublist {}: \n{:?}", id_letter(id), sublist);
+            }
         }
         Ok(())
     }
