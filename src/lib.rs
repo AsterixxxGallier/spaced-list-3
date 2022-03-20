@@ -352,23 +352,28 @@ impl<S: Spacing> SpacedList<S> {
             return None;
         }
 
-        let mut position = S::zero();
-        let mut index = 0usize;
+        let mut position = self.length;
+        // let mut index = 1 << ((self.size - 1).log2() + 1);
+        // let mut index = 1 << (self.size.log2() + 1);
+        // let mut index = 1 << self.size.log2();
+        let mut index = self.capacity - 1;
         for degree in (0..self.depth()).rev() {
-            let possibly_next_index = index + (1 << degree);
-            if possibly_next_index < self.size {
-                let possibly_next_position = position + self[(index, degree)];
-                if possibly_next_position <= target_position {
-                    position = possibly_next_position;
-                    index = possibly_next_index;
-                }
+            let possibly_next_index = index - (1 << degree);
+            // let link_index = link_index(possibly_next_index, degree);
+            // if link_index >= self.link_lengths.len() {
+            //     continue
+            // }
+            let possibly_next_position = position - self[(possibly_next_index, degree)];
+            if possibly_next_position > target_position {
+                position = possibly_next_position;
+                index = possibly_next_index;
             }
         }
 
         Some(TraversalResult {
             list: self,
-            position: position + self[(index, 0)],
-            index: index + 1,
+            position,
+            index,
         })
     }
 }
